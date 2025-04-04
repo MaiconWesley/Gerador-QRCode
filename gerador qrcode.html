@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QR Code para WhatsApp</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f7f7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    #input-phone {
+      width: 300px;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .logo-options {
+      margin-bottom: 10px;
+    }
+
+    .logo-options label {
+      margin-right: 15px;
+    }
+
+    #custom-logo {
+      display: none;
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #25D366;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #20b558;
+    }
+
+    .qrcode-container {
+      background-color: #ffffff;
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: fit-content;
+    }
+
+    .qrcode-wrapper {
+      width: 256px;
+      height: 256px;
+    }
+
+    #qrcode {
+      width: 256px;
+      height: 256px;
+    }
+
+    #phone-output {
+      margin-top: 15px;
+      width: 256px;
+      font-size: clamp(16px, 5vw, 28px);
+      color: #333;
+      font-weight: bold;
+      text-align: center;
+      word-wrap: break-word;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #btn-download {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: none;
+    }
+
+    #btn-download:hover {
+      background-color: #0069d9;
+    }
+  </style>
+</head>
+<body>
+  <h1>QR Code para WhatsApp</h1>
+
+  <input type="text" id="input-phone" placeholder="Digite o número (ex: 5515999999999)">
+
+  <!-- Seleção de logo -->
+  <div class="logo-options">
+    <label><input type="radio" name="logo" value="whatsapp" checked> WhatsApp</label>
+    <label><input type="radio" name="logo" value="facebook"> Facebook</label>
+    <label><input type="radio" name="logo" value="instagram"> Instagram</label>
+    <label><input type="radio" name="logo" value="outro"> Outro</label>
+  </div>
+
+  <!-- Upload personalizado -->
+  <input type="file" id="custom-logo" accept="image/*">
+
+  <button onclick="gerarQRCode()">Gerar QR Code</button>
+
+  <!-- QRCode + telefone formatado -->
+  <div class="qrcode-container" id="qr-container" style="display: none;">
+    <div class="qrcode-wrapper">
+      <div id="qrcode"></div>
+    </div>
+    <div id="phone-output"></div>
+  </div>
+
+  <!-- Botão de download FORA da borda branca -->
+  <button id="btn-download">Baixar QR Code</button>
+
+  <script src="qrcode.min.js"></script>
+  <script>
+    const logoRadios = document.querySelectorAll('input[name="logo"]');
+    const customLogoInput = document.getElementById('custom-logo');
+
+    // Mostra ou esconde input de arquivo
+    logoRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        if (radio.value === "outro") {
+          customLogoInput.style.display = "block";
+        } else {
+          customLogoInput.style.display = "none";
+        }
+      });
+    });
+
+    function gerarQRCode() {
+      const container = document.getElementById('qrcode');
+      container.innerHTML = "";
+      const output = document.getElementById('phone-output');
+      const box = document.getElementById('qr-container');
+      const downloadBtn = document.getElementById('btn-download');
+      downloadBtn.style.display = "none";
+
+      let numero = document.getElementById('input-phone').value;
+      numero = numero.replace(/\D/g, '');
+
+      if (numero.length < 12) {
+        alert("Digite o número com DDI + DDD + número (ex: 55 99 999999999)");
+        output.textContent = "";
+        box.style.display = "none";
+        return;
+      }
+
+      const linkWhatsApp = `https://wa.me/${numero}`;
+      const ddd = numero.slice(-11, -9);
+      const telefone = numero.slice(-9);
+      const telefoneFormatado = `(${ddd}) ${telefone.slice(0, 5)}-${telefone.slice(5)}`;
+
+      output.textContent = telefoneFormatado;
+      box.style.display = "flex";
+
+      new QRCode(container, {
+        text: linkWhatsApp,
+        width: 256,
+        height: 256,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      setTimeout(() => {
+        const selectedLogo = document.querySelector('input[name="logo"]:checked').value;
+        const canvas = container.querySelector("canvas");
+
+        if (canvas && selectedLogo) {
+          const ctx = canvas.getContext("2d");
+          const img = new Image();
+          let logoSrc = "";
+
+          if (selectedLogo === "outro") {
+            const file = customLogoInput.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = function (e) {
+                img.onload = () => desenharLogo(img, canvas);
+                img.src = e.target.result;
+              };
+              reader.readAsDataURL(file);
+            } else {
+              downloadBtn.style.display = "inline-block";
+            }
+          } else {
+switch (selectedLogo) {
+  case "whatsapp":
+    logoSrc = "whatsapp.png";
+    break;
+  case "facebook":
+    logoSrc = "facebook.png";
+    break;
+  case "instagram":
+    logoSrc = "instagram.png";
+    break;
+}
+
+            img.crossOrigin = "anonymous";
+            img.onload = () => desenharLogo(img, canvas);
+            img.src = logoSrc;
+          }
+        } else {
+          downloadBtn.style.display = "inline-block";
+        }
+      }, 300);
+    }
+
+    function desenharLogo(img, canvas) {
+      const ctx = canvas.getContext("2d");
+      const size = 64;
+      const x = (canvas.width - size) / 2;
+      const y = (canvas.height - size) / 2;
+      ctx.fillStyle = "white";
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height / 2, size / 2 + 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.drawImage(img, x, y, size, size);
+      document.getElementById("btn-download").style.display = "inline-block";
+    }
+
+    document.getElementById("btn-download").addEventListener("click", function () {
+      const canvas = document.querySelector("#qrcode canvas");
+      if (canvas) {
+        const link = document.createElement("a");
+        link.href = canvas.toDataURL("image/png");
+        link.download = "qrcode-whatsapp.png";
+        link.click();
+      }
+    });
+  </script>
+</body>
+</html>
